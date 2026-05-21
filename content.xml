@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content
+    id="trimon_fix"
+    name="Widescreen UI Fix"
+    description="Dynamically fixes UI scaling, menu layout, and HUD positioning for ultrawide (32:9) and triple-monitor (48:9) setups. Auto-detects resolution — no configuration required. Requires UI Extensions."
+    author="Nick"
+    version="010"
+    date="2026-05-21"
+    save="false"
+    sync="false"
+    enabled="true">
+  <dependency id="kuertee_ui_extensions" optional="false" name="UI Extensions and HUD" />
+</content>

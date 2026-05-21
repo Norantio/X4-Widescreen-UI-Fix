@@ -1,0 +1,21 @@
+# X4 Foundations game archives (never commit extracted game content)
+*.cat
+*.dat
+*.xpl
+
+# Extracted game sources — place locally for reference during development, do not commit
+ui/addons/
+
+# Debug log produced by -debug all launch flag
+debuglog.txt
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+*.suo
+.vscode/
+*.user

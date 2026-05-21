@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon name="trimon_fix"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="../../ui/core/addon.xsd">
+  <environment type="menus">
+    <!-- Utility module and config — must be loaded first -->
+    <file name="ui/trimon_utils.lua" />
+    <file name="ui/trimon_config.lua" />
+
+    <!-- Per-menu callback registrations -->
+    <file name="ui/trimon_menu_map.lua" />
+    <file name="ui/trimon_menu_detailmonitor.lua" />
+    <file name="ui/trimon_menu_interactmenu.lua" />
+    <file name="ui/trimon_menu_shipconfig.lua" />
+    <file name="ui/trimon_menu_stationoverview.lua" />
+    <file name="ui/trimon_menu_missionoffer.lua" />
+    <file name="ui/trimon_menu_trademenu.lua" />
+    <file name="ui/trimon_menu_gameoptions.lua" />
+    <file name="ui/trimon_menu_encyclopedia.lua" />
+    <file name="ui/trimon_menu_toplevel.lua" />
+
+    <!-- Dependencies — ensure UIX menus load before our callback registrations.
+         TODO(Phase 3): verify these names match UIX's actual addon registration names.
+         They may differ from the ego_* base game names. -->
+    <dependency name="ego_detailmonitor" />
+    <dependency name="ego_mapMenu" />
+    <dependency name="ego_interactMenu" />
+    <dependency name="ego_shipconfig" />
+    <dependency name="ego_stationoverview" />
+    <dependency name="ego_missionoffer" />
+    <dependency name="ego_trademenu" />
+    <dependency name="ego_gameoptions" />
+    <dependency name="ego_encyclopedia" />
+  </environment>
+</addon>

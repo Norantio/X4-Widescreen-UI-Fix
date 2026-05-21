@@ -27,7 +27,7 @@ This mod will **not** target a specific resolution. It detects the viewport aspe
 | **Standard** | ≤ 2.4:1 | 16:9, 16:10, 21:9 (2560×1080, 3440×1440) | Mod is **inert** — zero changes applied |
 | **Ultrawide+** | 2.4:1 – 3.6:1 | 32:9 (5120×1440), Samsung G9, etc. | UI clamped to center region, HUD adjusted |
 | **Triple landscape** | > 3.6:1 | 48:9 (5760×1080, 7680×1440) | Full clamping + HUD repositioning |
-| **Triple portrait** | ≤ 2.4:1 | 3240×1920, 4320×2560 | Mod is **inert** (effectively normal aspect ratio) |
+| **Vertical stack** | ≤ 2.4:1 | 3240×1920, 4320×2560 | Mod is **inert** (monitors stacked vertically produce a normal aspect ratio) |
 
 The activation threshold (default: 2.4:1) is user-configurable via Extension Options. Users with 21:9 ultrawide monitors who are happy with the vanilla UI can leave it off; users who find 21:9 menus too stretched can lower the threshold.
 
@@ -178,10 +178,16 @@ This is how the game discovers your Lua files. Each file is loaded alongside (no
     <file name="ui/trimon_menu_encyclopedia.lua" />
     <file name="ui/trimon_menu_toplevel.lua" />
 
-    <!-- Dependencies — ensure UIX menus load before us -->
+    <!-- Dependencies — ensure UIX menus load before our callback registrations -->
     <dependency name="ego_detailmonitor" />
     <dependency name="ego_mapMenu" />
     <dependency name="ego_interactMenu" />
+    <dependency name="ego_shipconfig" />
+    <dependency name="ego_stationoverview" />
+    <dependency name="ego_missionoffer" />
+    <dependency name="ego_trademenu" />
+    <dependency name="ego_gameoptions" />
+    <dependency name="ego_encyclopedia" />
   </environment>
 </addon>
 ```
@@ -234,40 +240,55 @@ trimon.config = {
 -- RUNTIME DETECTION
 -- ============================================================
 
--- Cache screen info per session (resolution doesn't change mid-game)
-local _screenInfoCache = nil
+-- Cache ONLY physical screen dimensions (won't change mid-session).
+-- Classification (isStandard, isUltrawide, isTriple) is recomputed each call so
+-- changes to trimon.config.activationThreshold (via Extension Options) take effect
+-- immediately without needing resetCache().
+--
+-- ⚠ API NAMES: Verify against your game version before shipping.
+-- Common alternatives to try if these return nil:
+--   C.GetScreenWidth() / C.GetScreenHeight()  (C FFI table)
+--   GetScreenWidth() / GetScreenHeight()
+local _dimsCache = nil
 
-function trimon.getScreenInfo()
-    if _screenInfoCache then return _screenInfoCache end
-
-    local w = GetScreenSizeX()    -- e.g. 7680, 5120, 3440, 1920
-    local h = GetScreenSizeY()    -- e.g. 1440, 1080
-    local aspect = w / h
-
-    _screenInfoCache = {
-        width = w,
-        height = h,
-        aspect = aspect,
-        -- Classification
-        isStandard = (aspect <= trimon.config.activationThreshold),
-        isUltrawide = (aspect > trimon.config.activationThreshold and aspect <= 3.6),
-        isTriple = (aspect > 3.6),
-        -- Human-readable (for debug / config UI)
-        label = "standard",
-    }
-
-    if _screenInfoCache.isTriple then
-        _screenInfoCache.label = "triple"
-    elseif _screenInfoCache.isUltrawide then
-        _screenInfoCache.label = "ultrawide+"
+local function _getDims()
+    if _dimsCache then return _dimsCache end
+    -- Defensive fallback: wrong API name → 1920×1080 (16:9) instead of nil crash.
+    -- Mod stays inert and logs a warning until the correct name is confirmed.
+    local w = (GetScreenSizeX and GetScreenSizeX())
+           or (C and C.GetScreenWidth and C.GetScreenWidth())
+           or 1920
+    local h = (GetScreenSizeY and GetScreenSizeY())
+           or (C and C.GetScreenHeight and C.GetScreenHeight())
+           or 1080
+    if w == 1920 and h == 1080 then
+        DebugError("TriMon WARNING: screen size API returned nil — verify GetScreenSizeX/Y names")
     end
-
-    return _screenInfoCache
+    _dimsCache = { width = w, height = h, aspect = w / h }
+    return _dimsCache
 end
 
--- Invalidate cache (call if user changes resolution mid-session, unlikely but safe)
+function trimon.getScreenInfo()
+    local dims = _getDims()
+    local t = trimon.config.activationThreshold
+    local info = {
+        width       = dims.width,
+        height      = dims.height,
+        aspect      = dims.aspect,
+        isStandard  = (dims.aspect <= t),
+        isUltrawide = (dims.aspect > t and dims.aspect <= 3.6),
+        isTriple    = (dims.aspect > 3.6),
+        label       = "standard",
+    }
+    if info.isTriple    then info.label = "triple"
+    elseif info.isUltrawide then info.label = "ultrawide+" end
+    return info
+end
+
+-- Invalidate dims cache (only needed if resolution changes mid-session — very unlikely).
+-- Note: changing trimon.config.activationThreshold does NOT require resetCache().
 function trimon.resetCache()
-    _screenInfoCache = nil
+    _dimsCache = nil
 end
 
 -- ============================================================
@@ -338,7 +359,12 @@ function trimon.getDebugString()
     )
 end
 
-return trimon
+-- Expose as a global so per-menu files can access it directly.
+-- X4's Lua environment loads all ui.xml <file> entries into a shared namespace,
+-- so _G.trimon is visible in every file declared after this one in ui.xml.
+-- require() with extension-relative paths is NOT supported in X4's Lua sandbox.
+_G.trimon = trimon
+return trimon  -- kept for forward-compat; not relied upon
 ```
 
 ---
@@ -360,7 +386,7 @@ return trimon
 - [ ] Verify mod loads — check debuglog.txt for errors
 - [ ] Verify UIX detects the dependency correctly
 
-**Key gotcha:** UIX's `.xpl` files must be in the game's `ui/` folder (not just the extension folder) when developing. The `-prefersinglefiles` flag makes the game prefer loose files over cat/dat packed versions.
+**Key gotcha (dev workflow only):** When actively editing UIX's `.xpl` files, copy them into the game's `ui/addons/` folder so the `-prefersinglefiles` flag picks them up as loose files without repacking cat/dat archives. This is a development convenience only — the installed layout (Section 11) correctly keeps UIX files under `extensions/kuertee_ui_extensions/ui/` and the extension system loads them from there at runtime. The copy step is purely for fast iteration during development.
 
 ### Phase 2: Cockpit HUD Repositioning (Effort: Low-Medium — ~4-8 hours)
 
@@ -422,7 +448,13 @@ This phase is **independent of UIX** — it uses standard XML diff patches.
 
 This is a **research phase** that must happen before writing the actual menu fix code. The work:
 
-1. **For each P0/P1 menu**, open the corresponding UIX `.xpl` file and search for all `callback` invocations.
+0. **Decompile all UIX `.xpl` files before doing anything else.** `.xpl` is compiled Lua bytecode — you cannot read it in a text editor. Tool: [unluac](https://github.com/HansWessels/unluac) (Java JAR, no install needed).
+   ```
+   java -jar unluac.jar kuertee_menu_map.xpl > kuertee_menu_map_decompiled.lua
+   ```
+   Run on every file in the audit table below. Keep the decompiled `.lua` files locally (do not commit — they are derived from game IP).
+
+1. **For each P0/P1 menu**, open the decompiled Lua file and search for all `callback` invocations.
 2. **Document every callback** — its name, where in the rendering pipeline it fires, what parameters it receives, and what return values it expects.
 3. **Identify layout-relevant callbacks** — specifically ones that fire:
    - At frame creation time (where width/height are set)
@@ -468,23 +500,34 @@ For each menu, the pattern is:
 -- trimon_menu_map.lua
 -- Widescreen UI Fix — Map Menu layout corrections
 
-local trimon = require("extensions.trimon_fix.ui.trimon_utils")
+-- trimon is a global set by trimon_utils.lua, which ui.xml loads first.
+-- X4's Lua sandbox does not support require() with extension-relative paths.
+if not trimon then
+    DebugError("TriMon: trimon_utils.lua not loaded — check ui.xml file ordering")
+    return
+end
+
 local ModLua = {}
 
 function ModLua.init()
     if not trimon.isMenuActive("map") then return end
 
-    -- Get reference to UIX's map menu
+    -- ⚠ VERIFY IN PHASE 3: both the menu's registered name AND the registration
+    -- API shape. UIX may use a different call than shown here, e.g.:
+    --   kuertee_ui_extensions.addCallback("map", "hookName", fn)
+    -- Consult the UIX sample mod (Section 10) for the canonical pattern.
+    -- The menu name "MapMenu" is also a guess — search UIX source for
+    -- the string passed to Menus.Add() or equivalent to confirm it.
     local MapMenu = Menus.Find("MapMenu")
     if not MapMenu then
-        DebugError("TriMon: MapMenu not found — is UI Extensions installed?")
+        DebugError("TriMon: MapMenu not found — verify menu name and UIX installation")
         return
     end
 
     DebugError(trimon.getDebugString())  -- logs resolution info once
 
     -- Register callbacks at layout-critical points
-    -- (Exact callback names TBD from Phase 3 audit)
+    -- (Exact callback names AND registration API shape TBD from Phase 3 audit)
     MapMenu.registerCallback(
         "createMainFrame_on_before_set_width",
         ModLua.onMapFrameWidth,
