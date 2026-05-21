@@ -8,12 +8,14 @@
 
 ## 1. Problem Statement
 
+> **Target configuration:** This mod applies only when GPU-level Surround/Eyefinity (or equivalent) is active — i.e., the OS presents all physical monitors as a single combined logical resolution (e.g., 5760×1080). Users with multiple monitors who have **not** enabled Surround/Eyefinity see X4 rendering on a single monitor and are unaffected by these issues.
+
 X4: Foundations will render across ultrawide and multi-monitor spans, but the UI breaks at aspect ratios wider than ~21:9:
 
 - **UI scaling is computed from horizontal resolution** instead of vertical, so every UI element balloons proportionally to viewport width.
 - **HUD cockpit panels** (event monitor, message ticker, radar) are positioned for 16:9 and get pushed off-screen or clipped at wider ratios.
 - **Full-screen menus** (map, shipyard, encyclopedia, mission briefings, trade menus) stretch across the full viewport, with elements landing in bezel gaps or off edges entirely.
-- **Click targets misalign** — the cursor position reported to the UI doesn't always match where you're actually clicking, especially near screen edges.
+- **Click targets misalign** — the cursor position reported to the UI doesn't always match where you're actually clicking, especially near screen edges. *(At least one community report confirms cursor accuracy works correctly at 48:9 — see Current State doc Section 2. This risk item may be lower than initially assumed and Phase 5 may be reducible or eliminated.)*
 - **Dialog boxes and overlays** (mission info popups, hire builder, etc.) are anchored to viewport center at 16:9 and either vanish or become unusable.
 
 The game is architecturally capable of the wide render — the 3D scene, skybox, and ship models look fantastic. The problem is entirely in the 2D UI/HUD layer.
@@ -578,15 +580,19 @@ ModLua.init()
 - Medium menus (detail monitor, ship config, trade, encyclopedia): 3-6 hours each
 - Complex menus (map, station overview): 6-10 hours each
 
-### Phase 5: Click Target / Cursor Alignment (Effort: Medium — ~4-10 hours)
+### Phase 5: Click Target / Cursor Alignment (Effort: Low-Medium — ~2-6 hours)
 
-**Goal:** Verify and fix cursor alignment issues.
+**Goal:** Verify cursor alignment after Phase 4 layout fixes are in place.
+
+**Updated risk level: Lower than originally scoped.** At least one community user (5760×1080) has confirmed cursor accuracy works correctly at 48:9 — clicks land where expected. This suggests the cursor alignment concern may be a non-issue once the layout fixes are applied, potentially eliminating this phase entirely.
 
 **Approach:**
-- After Phase 4, test click accuracy across all fixed menus.
-- If the layout clamping fixes properly constrain the interactive regions, cursor alignment may self-correct — the engine maps mouse position to the actual rendered element positions.
-- If misalignment persists, investigate whether the cursor coordinate system uses the full viewport or the menu's local space.
-- **Worst case:** This is an engine-level issue and is unfixable from Lua. Document it as a known limitation and recommend users rely on keyboard navigation where possible.
+- After Phase 4, test click accuracy across all fixed menus at target resolutions.
+- If the layout clamping properly constrains interactive regions, cursor alignment should self-correct — the engine maps mouse position to actual rendered element positions.
+- If misalignment persists, investigate whether the cursor coordinate system uses the full viewport or menu-local space.
+- **Worst case:** This is an engine-level issue and is unfixable from Lua. Document as a known limitation and recommend keyboard navigation where affected.
+
+**Expected outcome based on current evidence:** Cursor works; this phase is a verification pass, not a fix phase.
 
 ### Phase 6: Polish, Config & Release (Effort: Medium — ~6-10 hours)
 
@@ -595,7 +601,7 @@ ModLua.init()
   - Aspect ratio override (e.g., force 16:9, allow 21:9 for ultrawide users who don't want full clamping)
   - HUD positioning presets (tight/default/wide)
 - [ ] **Compatibility testing:**
-  - Trade Analytics (known ultrawide callback already in UIX — `v7.5.03` added a callback specifically for ultrawide Trade Analytics compat)
+  - Trade Analytics (known ultrawide callback already in UIX — a specific version added a callback for ultrawide Trade Analytics compat; verify version against UIX changelog)
   - VRO (Variety and Rebalance Overhaul)
   - StarWars Interworlds (heavily modded UI via UIX)
   - SirNukes' Mod Support APIs
@@ -611,7 +617,7 @@ ModLua.init()
 | Risk | Severity | Mitigation |
 |---|---|---|
 | **UIX lacks callbacks at layout-critical points** | High | Phase 3 audit identifies gaps early. kuertee is responsive — has added layout callbacks before (v7.5.03 ultrawide fix). Prepare specific, well-documented callback requests. Fallback: for menus without callbacks, provide standalone Lua overrides as a secondary package. |
-| **Cursor misalignment is engine-level** | High | Test after Phase 4. If unfixable, document as known limitation. Check if `SetCursorOffset()` or similar API exists. |
+| **Cursor misalignment is engine-level** | Low-Medium | Community report confirms cursor accuracy at 48:9. After Phase 4 layout clamping, cursor likely self-corrects. Phase 5 is now a verification pass. Fallback: document as known limitation. |
 | **Game updates break UIX callbacks** | Medium | Low risk — UIX tracks game versions closely. Your callbacks are registered by name; as long as kuertee doesn't rename them, they survive. Pin your mod to a UIX version range in docs. |
 | **Some menus have width calculations deep in engine C++** | Medium | Accept partial fixes. Some frames may not be fully clampable from Lua. Document which menus have remaining issues. |
 | **Different cockpit geometries per ship faction** | Low | Test one ship per faction. May need per-faction XML diff files (small effort, just tuning position values). |
@@ -628,9 +634,9 @@ ModLua.init()
 | 2 — Cockpit HUD (XML) | 4–8 | Easy-Medium | All HUD panels visible at target resolution |
 | 3 — UIX Callback Audit | 6–10 | Medium | Callback map document, new callback request list |
 | 4 — Menu Layout Fixes | 20–35 | Hard | P0-P2 menus usable at triple-monitor res |
-| 5 — Cursor Alignment | 4–10 | Medium-Hard | Verified click accuracy (or documented limitations) |
+| 5 — Cursor Alignment | 2–6 | Low-Medium | Verified click accuracy (or documented limitations) |
 | 6 — Polish & Release | 6–10 | Medium | Configurable, tested, documented, published |
-| **Total** | **43–78 hours** | | |
+| **Total** | **37–69 hours** | | |
 
 ### Milestone Plan
 
@@ -657,7 +663,7 @@ Building on UIX means working with its maintainer. Recommended approach:
 3. **Offer to submit the changes yourself** via GitHub PR — kuertee accepts contributor PRs (the README credits multiple contributors who've added callbacks).
 4. **Coordinate release timing** — kuertee's process is to merge your callbacks and release UIX alongside your mod.
 
-The existing precedent is encouraging: UIX v7.5.03 specifically added a callback "to prevent problems with Trade Analytics mod on ultra-wide monitors." Your use case is a natural extension of this.
+The existing precedent is encouraging: UIX v7.5.03 specifically added a callback "to prevent problems with Trade Analytics mod on ultra-wide monitors." *(Verify this version number and callback description against the UIX changelog or Nexus update history before citing it in the outreach message to kuertee.)* Your use case is a natural extension of this.
 
 ---
 
