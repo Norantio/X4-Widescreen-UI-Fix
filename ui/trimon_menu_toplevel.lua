@@ -33,7 +33,7 @@ function ModLua.init()
     -- The toplevel layer may use a different registration mechanism than per-menu callbacks.
     -- local TopLevel = Menus.Find("TopLevel")  -- existence unconfirmed
     -- If no hook is available, document as known limitation.
-    DebugError("TriMon: toplevel stub loaded — Phase 3 required to implement")
+    -- (Stub: no callbacks registered yet. Intentionally silent until Phase 3.)
 end
 
 ModLua.init()

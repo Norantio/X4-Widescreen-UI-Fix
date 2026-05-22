@@ -41,8 +41,7 @@ Fixes broken UI scaling, menu layout, and cockpit HUD positioning for ultrawide 
    └── extensions/
        └── trimon_fix/        ← drop here
            ├── content.xml
-           ├── ui/
-           └── assets/
+           └── ui/
    ```
 3. In-game: **Settings → Extensions → Protected UI Mode → OFF**
 4. Restart the game.

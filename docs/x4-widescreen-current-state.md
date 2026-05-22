@@ -147,7 +147,7 @@ The largest unserved need is menu layout clamping — constraining the Lua-const
 | 5120×1440 | 32:9 (3.56:1) | Single super-ultrawide (Samsung G9 etc.) | Menus broken. Flight gameplay fine. Needs UI Scale reduction. |
 | 3840×1024 | ~3.75:1 | Triple monitors (1280×1024 each) — note: 1280×1024 is a 5:4 aspect ratio, an unusual config | Menus broken, HUD panels off-screen. Ultrawide HUD Fix mod targets this. |
 | 3456×864 | 4:1 | Triple monitors (1152×864 each) | Sliders barely usable, mission UI fails to display, map is a mess. |
-| 5760×1080 | 48:9 (5.33:1) | Triple monitors (1920×1080 each) | UI massively oversized, menus unusable without extreme UI Scale reduction. Cursor reportedly works correctly. |
+| 5760×1080 | 48:9 (5.33:1) | Triple monitors (1920×1080 each) — **primary developer test configuration** (3 × 32" 1080p) | UI massively oversized, menus unusable without extreme UI Scale reduction. Cursor reportedly works correctly. Mod effective width: 1920px (center monitor). Offset: 1920px each side. |
 | 7680×1440 | 48:9 (5.33:1) | Triple monitors (2560×1440 each) | User-requested on Ultrawide HUD Fix Nexus page. No confirmed testing. |
 
 ---
